@@ -54,10 +54,13 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onToggle }) => {
       )}
     >
       {/* Header */}
-      <div className={cn(
-        "flex items-center border-b border-sidebar-border px-3 py-5",
-        collapsed ? "justify-center" : "gap-3 px-6"
-      )}>
+      <Link
+        to="/dashboard"
+        className={cn(
+          "flex items-center border-b border-sidebar-border px-3 py-5 transition-colors hover:bg-sidebar-accent/50",
+          collapsed ? "justify-center" : "gap-3 px-6"
+        )}
+      >
         <Shield className="h-7 w-7 shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
@@ -65,7 +68,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onToggle }) => {
             <p className="text-xs opacity-70 font-ui">Deep Learning</p>
           </div>
         )}
-      </div>
+      </Link>
 
       {/* Toggle button */}
       <div className={cn("flex px-3 pt-3", collapsed ? "justify-center" : "justify-end pr-4")}>
