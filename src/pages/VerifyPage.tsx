@@ -36,7 +36,9 @@ const VerifyPage: React.FC = () => {
       setCurrentStep(i);
       await new Promise((r) => setTimeout(r, 700));
     }
-    const score = Math.random() * 0.4 + 0.6;
+    // If images are identical, return perfect match
+    const isIdentical = refImage === testImage;
+    const score = isIdentical ? 1.0 : Math.random() * 0.4 + 0.6;
     const result = score > 0.9 ? "MATCH" : "NOT MATCH";
     navigate("/result", {
       state: {
