@@ -69,7 +69,6 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onToggle }) => {
           </div>
         )}
       </Link>
-      </div>
 
       {/* Toggle button */}
       <div className={cn("flex px-3 pt-3", collapsed ? "justify-center" : "justify-end pr-4")}>
