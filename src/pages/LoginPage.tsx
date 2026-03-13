@@ -11,23 +11,33 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState("");
-  const { login } = useAuth();
+  const [info, setInfo] = useState("");
+  const { signIn, signInWithOtp } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    try {
-      const success = await login(email, password);
-      if (success) navigate("/dashboard");
-      else setError("Invalid credentials");
-    } catch {
-      setError("Login failed");
-    } finally {
-      setLoading(false);
+    const { error } = await signIn(email, password);
+    if (error) setError(error);
+    else navigate("/dashboard");
+    setLoading(false);
+  };
+
+  const handleOtpLogin = async () => {
+    if (!email) { setError("Enter your email first"); return; }
+    setError("");
+    setLoading(true);
+    const { error } = await signInWithOtp(email);
+    if (error) setError(error);
+    else {
+      setOtpSent(true);
+      setInfo("A magic link has been sent to your email. Check your inbox to sign in.");
     }
+    setLoading(false);
   };
 
   return (
@@ -41,10 +51,9 @@ const LoginPage: React.FC = () => {
           <CardDescription className="font-ui">Deep Learning Based Authentication</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
-            )}
+          <form onSubmit={handlePasswordLogin} className="space-y-4">
+            {error && <div className="rounded bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {info && <div className="rounded bg-success/10 p-3 text-sm text-success">{info}</div>}
             <div className="space-y-2">
               <Label htmlFor="email" className="font-ui text-sm font-medium">Email Address</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="researcher@university.edu" required />
@@ -54,7 +63,14 @@ const LoginPage: React.FC = () => {
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Authenticating..." : "Sign In"}
+              {loading ? "Authenticating..." : "Sign In with Password"}
+            </Button>
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground font-ui">or</span></div>
+            </div>
+            <Button type="button" variant="outline" className="w-full" onClick={handleOtpLogin} disabled={loading || otpSent}>
+              {otpSent ? "Magic Link Sent ✓" : "Sign In with Email OTP"}
             </Button>
             <p className="text-center text-sm text-muted-foreground font-ui">
               Don't have an account?{" "}

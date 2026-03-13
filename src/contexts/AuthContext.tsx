@@ -1,19 +1,23 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
-interface User {
+interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: "user" | "admin";
+  role: "admin" | "moderator" | "user";
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<string>;
-  verifyOtp: (email: string, otp: string) => Promise<boolean>;
-  logout: () => void;
+  loading: boolean;
+  signUp: (name: string, email: string, password: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signInWithOtp: (email: string) => Promise<{ error?: string }>;
+  verifyOtp: (email: string, token: string) => Promise<{ error?: string }>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -24,53 +28,104 @@ export const useAuth = () => {
   return ctx;
 };
 
+async function fetchUserProfile(supabaseUser: SupabaseUser): Promise<UserProfile> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("user_id", supabaseUser.id)
+    .single();
+
+  const { data: roles } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", supabaseUser.id);
+
+  const role = roles?.find((r) => r.role === "admin")
+    ? "admin"
+    : roles?.find((r) => r.role === "moderator")
+    ? "moderator"
+    : "user";
+
+  return {
+    id: supabaseUser.id,
+    name: profile?.full_name || supabaseUser.email?.split("@")[0] || "User",
+    email: supabaseUser.email || "",
+    role: role as "admin" | "moderator" | "user",
+  };
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = sessionStorage.getItem("hw_user");
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = useCallback(async (email: string, _password: string) => {
-    await new Promise((r) => setTimeout(r, 800));
-    const u: User = {
-      id: crypto.randomUUID(),
-      name: email.split("@")[0],
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        // Use setTimeout to avoid deadlock with Supabase auth
+        setTimeout(async () => {
+          const profile = await fetchUserProfile(session.user);
+          setUser(profile);
+          setLoading(false);
+        }, 0);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const profile = await fetchUserProfile(session.user);
+        setUser(profile);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signUp = useCallback(async (name: string, email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
       email,
-      role: email.includes("admin") ? "admin" : "user",
-    };
-    setUser(u);
-    sessionStorage.setItem("hw_user", JSON.stringify(u));
-    return true;
+      password,
+      options: {
+        data: { full_name: name },
+        emailRedirectTo: window.location.origin,
+      },
+    });
+    if (error) return { error: error.message };
+    return {};
   }, []);
 
-  const register = useCallback(async (_name: string, email: string, _password: string) => {
-    await new Promise((r) => setTimeout(r, 800));
-    return email;
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+    return {};
   }, []);
 
-  const verifyOtp = useCallback(async (email: string, otp: string) => {
-    await new Promise((r) => setTimeout(r, 600));
-    if (otp.length === 6) {
-      const u: User = {
-        id: crypto.randomUUID(),
-        name: email.split("@")[0],
-        email,
-        role: email.includes("admin") ? "admin" : "user",
-      };
-      setUser(u);
-      sessionStorage.setItem("hw_user", JSON.stringify(u));
-      return true;
-    }
-    return false;
+  const signInWithOtp = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    if (error) return { error: error.message };
+    return {};
   }, []);
 
-  const logout = useCallback(() => {
+  const verifyOtp = useCallback(async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
+    });
+    if (error) return { error: error.message };
+    return {};
+  }, []);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    sessionStorage.removeItem("hw_user");
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, verifyOtp, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, signUp, signIn, signInWithOtp, verifyOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );
