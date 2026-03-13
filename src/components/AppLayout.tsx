@@ -1,10 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import AppSidebar from "@/components/AppSidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AppLayout: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
+  const isMobile = useIsMobile();
+  const [collapsed, setCollapsed] = useState(isMobile);
 
   if (loading) {
     return (
@@ -21,7 +24,7 @@ const AppLayout: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <AppSidebar />
+      <AppSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
       <main className="flex-1 overflow-auto bg-background">
         <Outlet />
       </main>
