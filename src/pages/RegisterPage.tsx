@@ -14,23 +14,47 @@ const RegisterPage: React.FC = () => {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { register } = useAuth();
+  const [success, setSuccess] = useState(false);
+  const { signUp } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) { setError("Passwords do not match"); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
     setError("");
     setLoading(true);
-    try {
-      const registeredEmail = await register(name, email, password);
-      navigate(`/verify-otp?email=${encodeURIComponent(registeredEmail)}`);
-    } catch {
-      setError("Registration failed");
-    } finally {
-      setLoading(false);
+    const { error } = await signUp(name, email, password);
+    if (error) {
+      setError(error);
+    } else {
+      setSuccess(true);
     }
+    setLoading(false);
   };
+
+  if (success) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md border-border">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded bg-success">
+              <Shield className="h-7 w-7 text-success-foreground" />
+            </div>
+            <CardTitle className="font-heading text-2xl">Check Your Email</CardTitle>
+            <CardDescription className="font-ui">
+              We've sent a confirmation link to <strong>{email}</strong>. Click the link in the email to verify your account and sign in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/login">
+              <Button className="w-full">Back to Sign In</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -55,7 +79,7 @@ const RegisterPage: React.FC = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password" className="font-ui text-sm font-medium">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm" className="font-ui text-sm font-medium">Confirm Password</Label>
